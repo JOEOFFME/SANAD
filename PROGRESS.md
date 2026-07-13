@@ -152,3 +152,7 @@ python quick_test_topology.py
 - Correctly distinguishes normal vs anomaly based on latest reading only (not history)
 - Severity tiering confirmed: deviation_ratio 2.2 → "high" for forced HP400 vibration spike
 - Threshold-based by design — swappable for XGBoost Predictor once real incident data exists
+### [Milestone] Full API live via FastAPI /docs
+- assets, incidents, sensors routers all wired into main.py
+- Confirmed reachable at localhost:8000/docs with all endpoints visible
+- System now testable over HTTP, not just terminal scripts
