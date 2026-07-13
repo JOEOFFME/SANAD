@@ -148,3 +148,7 @@ python quick_test_topology.py
 - Anomaly injection confirmed: forced HP400 vibration spike (16.91 mm/s vs normal 2-6 range)
 - Full 7-asset x 3-sensor-type snapshot logs correctly to sensor_readings table
 - Ranges are generic placeholders — swap once real sensor specs come from Sanad
+- check_reading(), check_latest_reading(), scan_all_assets() verified
+- Correctly distinguishes normal vs anomaly based on latest reading only (not history)
+- Severity tiering confirmed: deviation_ratio 2.2 → "high" for forced HP400 vibration spike
+- Threshold-based by design — swappable for XGBoost Predictor once real incident data exists
