@@ -143,3 +143,8 @@ python quick_test_topology.py
 
 ## Progress Updates
 (add new entries below, most recent on top)
+### [Milestone] Sensor simulation working end-to-end
+- generate_reading(), simulate_and_log(), simulate_all_assets() all verified
+- Anomaly injection confirmed: forced HP400 vibration spike (16.91 mm/s vs normal 2-6 range)
+- Full 7-asset x 3-sensor-type snapshot logs correctly to sensor_readings table
+- Ranges are generic placeholders — swap once real sensor specs come from Sanad
