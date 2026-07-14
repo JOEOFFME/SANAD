@@ -156,3 +156,32 @@ python quick_test_topology.py
 - assets, incidents, sensors routers all wired into main.py
 - Confirmed reachable at localhost:8000/docs with all endpoints visible
 - System now testable over HTTP, not just terminal scripts
+### [Milestone] RAG pipeline validated on Crible (MF1861-2)
+- ingest.py + retrieve.py tested end-to-end, FAISS index built
+- Query "vibration excessive du crible" (FR) → 3 relevant chunks from EN manual
+- Multilingual retrieval confirmed working
+- Navisworks .nwd received (94MB) but UNREADABLE: proprietary compressed binary,
+  no SDK, no plain strings. Topology stays INFERRED until user exports from
+  Navisworks Freedom manually.
+- Next: wire retrieve.py into LangGraph NodeAgent
+### [Tuning] RAG retrieval — from 20% to 80% Hit Rate@3
+- Root causes found and fixed, in order:
+  1. IndexFlatL2 on non-normalized embeddings → switched to normalize + IndexFlatIP
+  2. Fixed-size chunking (1200 char) split troubleshooting sections mid-table
+     → switched to section-header-based chunking (split on "4.5 Loss of...")
+  3. Hybrid search (dense + BM25) and cross-encoder reranking tested — modest
+     gains, kept hybrid_query as default retrieval function
+- Built app/rag/eval.py: Hit Rate@k + MRR against a 5-query ground-truth set
+- Final: Hit Rate@3 = 80%, MRR = 0.80 on crible_mf1861
+- Remaining miss is a genuine semantic gap ("vibrates irregularly" vs "Unlike
+  Movement of the Screen") — acceptable, LLM generation layer should bridge it
+- Decision: stop RAG tuning here, move to LLM generation (node_agent → real diagnosis)
+### [Fix] Query translation FR→EN before retrieval
+- Root cause confirmed: manual is 100% English, dense+BM25 retrieval degrades
+  significantly on French queries even when the same content in English scores well
+  (e.g. "les ressorts sont cassés" → miss; "springs are broken" → hit rank 1)
+- Fix: translate query to English via Groq before hybrid_query call; keep original
+  French query for the final LLM answer prompt (user-facing response stays French)
+- Validated: "les ressorts du crible sont cassés" now retrieves correct chunk (161,
+  full Spring Breakage table) and produces accurate structured diagnosis
+- Pipeline now: query (FR) → translate (EN) → hybrid_query → chunks → LLM (context + original FR query) → answer (FR)
