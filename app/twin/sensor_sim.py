@@ -1,16 +1,13 @@
-# app/twin/sensor_sim.py
 """
 Sensor simulation layer.
 Single point of abstraction — swapping to real IoT later means
 changing only generate_reading(), nothing else in the system.
 """
-
 import random
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models import Asset, SensorReading
 
-# Placeholder normal ranges per sensor type — generic, not Sanad-tuned yet
 NORMAL_RANGES = {
     "vibration": (2.0, 6.0),      # mm/s
     "temperature": (40.0, 75.0),  # °C
@@ -23,7 +20,6 @@ SENSOR_UNITS = {
     "throughput": "t/h",
 }
 
-
 def generate_reading(asset_type: str, sensor_type: str, anomaly: bool = False) -> float:
     """
     Core abstraction point. Real IoT integration later replaces
@@ -31,7 +27,6 @@ def generate_reading(asset_type: str, sensor_type: str, anomaly: bool = False) -
     """
     low, high = NORMAL_RANGES[sensor_type]
     if anomaly:
-        # push value outside normal range to simulate a fault
         spike = (high - low) * random.uniform(1.5, 3.0)
         return round(high + spike, 2)
     return round(random.uniform(low, high), 2)
