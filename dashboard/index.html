@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SANAD Mining — Crushing Line Monitor</title>
+  <meta name="description" content="Real-time industrial monitoring dashboard for SANAD Mining crushing plant. Live sensor data: vibration, temperature, throughput across 7 assets." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#ffffff;--surface:#fafafa;--border:#e0e0e0;--border-dark:#c0c0c0;
+      --text-primary:#0a0a0a;--text-secondary:#5a5a5a;--text-label:#8a8a8a;
+      --accent-red:#c8201a;--accent-green:#1f8a4a;
+      --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+    }
+    html,body{height:100%;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text-primary);font-size:13px;line-height:1.4;letter-spacing:-.01em}
+    /* HEADER */
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:100}
+    .header-left{display:flex;flex-direction:column;gap:2px}
+    .plant-name{font-size:15px;font-weight:700;letter-spacing:-.02em;color:var(--text-primary);text-transform:uppercase}
+    .plant-sub{font-size:10px;font-weight:500;letter-spacing:.12em;color:var(--text-label);text-transform:uppercase}
+    .header-right{display:flex;align-items:center;gap:24px}
+    .clock{font-size:12px;font-weight:500;color:var(--text-secondary);font-variant-numeric:tabular-nums;letter-spacing:.05em}
+    .status-pill{display:flex;align-items:center;gap:7px;padding:5px 12px;border:1px solid var(--border);border-radius:2px;background:var(--surface)}
+    .live-dot{width:7px;height:7px;border-radius:50%;background:#999;transition:background .4s}
+    .live-dot.connected{background:var(--accent-green);animation:pulse 2s infinite}
+    .live-dot.error{background:var(--accent-red)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+    .status-text{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-label)}
+    /* TOPOLOGY BAR */
+    .topology-bar{display:flex;align-items:center;padding:10px 32px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+    .topology-bar::-webkit-scrollbar{display:none}
+    .topo-node{display:flex;align-items:center}
+    .topo-label{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-label);padding:3px 10px;border:1px solid var(--border);white-space:nowrap;transition:border-color .3s,color .3s}
+    .topo-label.anomaly{border-color:var(--accent-red);color:var(--accent-red)}
+    .topo-arrow{font-size:10px;color:var(--border-dark);padding:0 4px;user-select:none}
+    /* GRID */
+    main{padding:28px 32px 48px}
+    .grid-label{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-label);margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    .asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px}
+    /* CARD */
+    .card{background:var(--bg);border:1px solid var(--border);box-shadow:var(--shadow);transition:border-color .3s ease;position:relative;overflow:hidden}
+    .card.alert{border-color:var(--accent-red);animation:card-flash .6s ease}
+    @keyframes card-flash{0%,100%{box-shadow:var(--shadow)}50%{box-shadow:0 0 0 2px rgba(200,32,26,.25)}}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--border)}
+    .card-title-block{display:flex;align-items:center;gap:10px}
+    .asset-icon{width:28px;height:28px;flex-shrink:0;opacity:.7}
+    .card-title{font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--text-primary)}
+    .card-subtitle{font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text-label);margin-top:1px}
+    .card-status-badge{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--border);color:var(--text-label);transition:border-color .3s,color .3s}
+    .card-status-badge.alert{border-color:var(--accent-red);color:var(--accent-red)}
+    /* SENSOR ROWS */
+    .sensor-list{display:flex;flex-direction:column}
+    .sensor-row{display:grid;grid-template-columns:120px 1fr;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);gap:12px;min-height:74px}
+    .sensor-row:last-child{border-bottom:none}
+    .sensor-meta{display:flex;flex-direction:column;gap:4px}
+    .sensor-label{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-label)}
+    .sensor-value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.03em;color:var(--text-primary);transition:color .3s;line-height:1}
+    .sensor-value.anomaly{color:var(--accent-red)}
+    .sensor-unit{font-size:10px;font-weight:500;color:var(--text-label);letter-spacing:.02em}
+    .sensor-range{font-size:9px;color:var(--text-label);letter-spacing:.02em}
+    .chart-wrap{position:relative;height:52px}
+    /* FOOTER */
+    footer{border-top:1px solid var(--border);padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
+    .footer-left{font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-label)}
+    .footer-right{font-size:9px;color:var(--text-label);letter-spacing:.06em}
+    /* LOADING */
+    #loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;transition:opacity .4s}
+    #loading-overlay.hidden{opacity:0;pointer-events:none}
+    .spinner-ring{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--text-primary);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-label{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-label)}
+    @media(max-width:600px){header,main,footer,.topology-bar{padding-left:16px;padding-right:16px}.asset-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div id="loading-overlay">
+  <div class="spinner-ring"></div>
+  <div class="loading-label">Connecting to plant</div>
+</div>
+<header>
+  <div class="header-left">
+    <div class="plant-name">SANAD Mining &#8212; Crushing Line Monitor</div>
+    <div class="plant-sub">SGS-Tech &middot; Industrial Intelligence Platform</div>
+  </div>
+  <div class="header-right">
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="status-pill">
+      <div class="live-dot" id="live-dot"></div>
+      <span class="status-text" id="status-text">Connecting</span>
+    </div>
+  </div>
+</header>
+<div class="topology-bar" id="topo-bar"></div>
+<main>
+  <div class="grid-label">Live Asset Monitoring &#8212; 7 Units &middot; 3 Sensors Each &middot; 2 s Refresh</div>
+  <div class="asset-grid" id="asset-grid"></div>
+</main>
+<footer>
+  <div class="footer-left">SANADIndus v0.3 &middot; Real-Time WebSocket Feed</div>
+  <div class="footer-right" id="footer-ts">Last update: &#8212;</div>
+</footer>
+<script>
+const WS_URL      = 'ws://localhost:8000/ws/live';
+const WINDOW_SIZE = 30;
+const RECONNECT_MS = 3000;
+const ASSET_ORDER = ['TREMIE','FEED_CONV','HP400','HP300','CRIBLE','CONV_A','CONV_B'];
+const NORMAL_RANGES = {
+  vibration:   { low:2,  high:6,   unit:'mm/s', label:'Vibration'   },
+  temperature: { low:40, high:75,  unit:'\u00b0C',   label:'Temperature' },
+  throughput:  { low:80, high:150, unit:'t/h',  label:'Throughput'  },
+};
+const SENSOR_ORDER = ['vibration','temperature','throughput'];
+const ASSET_META = {
+  TREMIE:    { display:'Tr\u00e9mie Tampon',        sub:'Hopper'                    },
+  FEED_CONV: { display:'Conv. Alimentation',   sub:'Feed Conveyor'             },
+  HP400:     { display:'Concasseur HP400',      sub:'Cone Crusher'              },
+  HP300:     { display:'Concasseur HP300',      sub:'Cone Crusher'              },
+  CRIBLE:    { display:'Crible MF1861-2',       sub:'Vibrating Screen'          },
+  CONV_A:    { display:'Convoyeur A',           sub:'Output Conveyor (Existing)'},
+  CONV_B:    { display:'Convoyeur B',           sub:'Output Conveyor (New \u224890m)'},
+};
+const ICONS = {
+  hopper:   '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h20l-5 14H9L4 5Z"/><line x1="14" y1="19" x2="14" y2="24"/><line x1="11" y1="24" x2="17" y2="24"/></svg>',
+  conveyor: '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="10" width="24" height="6" rx="1"/><circle cx="5" cy="13" r="2.2"/><circle cx="23" cy="13" r="2.2"/></svg>',
+  crusher:  '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h18v4L17 14h-6L5 8V4Z"/><path d="M11 14l-3 10h12l-3-10"/><line x1="14" y1="8" x2="14" y2="14"/></svg>',
+  screen:   '<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="22" height="14" rx="1"/><line x1="8" y1="7" x2="8" y2="21"/><line x1="14" y1="7" x2="14" y2="21"/><line x1="20" y1="7" x2="20" y2="21"/><line x1="3" y1="13" x2="25" y2="13"/></svg>',
+};
+function getIcon(t){
+  t=(t||'').toLowerCase();
+  if(t.includes('hopper')||t.includes('tremie')||t.includes('tampon'))return ICONS.hopper;
+  if(t.includes('conv')||t.includes('belt'))return ICONS.conveyor;
+  if(t.includes('screen')||t.includes('crible'))return ICONS.screen;
+  return ICONS.crusher;
+}
+const chartData={};
+const charts={};
+const assetInfo={};
+/* Clock */
+function tickClock(){
+  const d=new Date();
+  document.getElementById('clock').textContent=
+    [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+}
+setInterval(tickClock,1000);tickClock();
+/* Topology bar */
+function buildTopoBar(){
+  const bar=document.getElementById('topo-bar');
+  bar.innerHTML='';
+  ASSET_ORDER.forEach((code,i)=>{
+    const node=document.createElement('div');node.className='topo-node';
+    const label=document.createElement('span');label.className='topo-label';label.id='topo-'+code;label.textContent=code;
+    node.appendChild(label);
+    if(i<ASSET_ORDER.length-1){const a=document.createElement('span');a.className='topo-arrow';a.textContent='\u2192';node.appendChild(a);}
+    bar.appendChild(node);
+  });
+}
+/* Card builder */
+function buildCard(code){
+  const meta=ASSET_META[code]||{display:code,sub:''};
+  const info=assetInfo[code]||{assetType:''};
+  const card=document.createElement('div');card.className='card';card.id='card-'+code;
+  card.innerHTML=`
+    <div class="card-header">
+      <div class="card-title-block">
+        <span class="asset-icon">${getIcon(info.assetType)}</span>
+        <div><div class="card-title">${meta.display}</div><div class="card-subtitle">${meta.sub}</div></div>
+      </div>
+      <span class="card-status-badge" id="badge-${code}">Normal</span>
+    </div>
+    <div class="sensor-list">${SENSOR_ORDER.map(s=>buildRow(code,s)).join('')}</div>`;
+  return card;
+}
+function buildRow(code,sensor){
+  const r=NORMAL_RANGES[sensor];
+  return `<div class="sensor-row"><div class="sensor-meta">
+    <span class="sensor-label">${r.label}</span>
+    <span class="sensor-value" id="val-${code}-${sensor}">&mdash;</span>
+    <span class="sensor-unit">${r.unit}</span>
+    <span class="sensor-range">${r.low}&ndash;${r.high} ${r.unit}</span>
+  </div><div class="chart-wrap"><canvas id="chart-${code}-${sensor}"></canvas></div></div>`;
+}
+function initChart(code,sensor){
+  const canvas=document.getElementById('chart-'+code+'-'+sensor);
+  if(!canvas||charts[code+'-'+sensor])return;
+  charts[code+'-'+sensor]=new Chart(canvas.getContext('2d'),{
+    type:'line',
+    data:{labels:[],datasets:[{data:[],borderColor:'#0a0a0a',borderWidth:1.5,backgroundColor:'rgba(10,10,10,.04)',pointRadius:0,tension:.4,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        x:{display:false,grid:{display:false}},
+        y:{display:true,position:'right',grid:{display:false},border:{display:false},
+          ticks:{maxTicksLimit:3,color:'#8a8a8a',font:{size:8,family:'Inter'},padding:2}}
+      }
+    }
+  });
+}
+function renderGrid(){
+  const grid=document.getElementById('asset-grid');grid.innerHTML='';
+  ASSET_ORDER.forEach(code=>{
+    if(!assetInfo[code])return;
+    grid.appendChild(buildCard(code));
+    SENSOR_ORDER.forEach(s=>initChart(code,s));
+  });
+}
+let firstBatch=true;
+function processReadings(readings){
+  readings.forEach(r=>{
+    if(!assetInfo[r.asset_code])assetInfo[r.asset_code]={assetName:r.asset_name,assetType:r.asset_type};
+    if(!chartData[r.asset_code])chartData[r.asset_code]={vibration:[],temperature:[],throughput:[]};
+  });
+  if(firstBatch){firstBatch=false;buildTopoBar();renderGrid();document.getElementById('loading-overlay').classList.add('hidden');}
+  const latest={};
+  readings.forEach(r=>{const k=r.asset_code+'::'+r.sensor_type;if(!latest[k]||r.timestamp>latest[k].timestamp)latest[k]=r;});
+  Object.values(latest).forEach(r=>updateReading(r));
+  document.getElementById('footer-ts').textContent='Last update: '+new Date().toLocaleTimeString();
+}
+function updateReading(r){
+  const{asset_code,sensor_type,value,timestamp,anomaly}=r;
+  const key=asset_code+'-'+sensor_type;
+  const buf=chartData[asset_code]?.[sensor_type];
+  if(!buf)return;
+  buf.push({value,timestamp});
+  if(buf.length>WINDOW_SIZE)buf.shift();
+  const chart=charts[key];
+  if(chart){
+    chart.data.labels=buf.map(p=>p.timestamp.slice(11,19));
+    chart.data.datasets[0].data=buf.map(p=>p.value);
+    chart.data.datasets[0].borderColor=anomaly?'#c8201a':'#0a0a0a';
+    chart.data.datasets[0].backgroundColor=anomaly?'rgba(200,32,26,.06)':'rgba(10,10,10,.04)';
+    chart.update('none');
+  }
+  const valEl=document.getElementById('val-'+asset_code+'-'+sensor_type);
+  if(valEl){valEl.textContent=value.toFixed(2);valEl.classList.toggle('anomaly',anomaly);}
+  updateCardState(asset_code);
+  const topoEl=document.getElementById('topo-'+asset_code);
+  if(topoEl){
+    const any=SENSOR_ORDER.some(s=>{const b=chartData[asset_code]?.[s];if(!b||!b.length)return false;const v=b[b.length-1].value;const{low,high}=NORMAL_RANGES[s];return!(low<=v&&v<=high);});
+    topoEl.classList.toggle('anomaly',any);
+  }
+}
+function updateCardState(code){
+  const any=SENSOR_ORDER.some(s=>{const b=chartData[code]?.[s];if(!b||!b.length)return false;const v=b[b.length-1].value;const{low,high}=NORMAL_RANGES[s];return!(low<=v&&v<=high);});
+  const card=document.getElementById('card-'+code);
+  const badge=document.getElementById('badge-'+code);
+  if(!card||!badge)return;
+  if(any){card.classList.add('alert');badge.classList.add('alert');badge.textContent='Anomaly';}
+  else{card.classList.remove('alert');badge.classList.remove('alert');badge.textContent='Normal';}
+}
+/* WebSocket */
+let ws=null,reconnectTimer=null;
+function setStatus(state){
+  const dot=document.getElementById('live-dot');
+  const text=document.getElementById('status-text');
+  dot.className='live-dot';
+  if(state==='connected'){dot.classList.add('connected');text.textContent='Live';}
+  else if(state==='error'){dot.classList.add('error');text.textContent='Reconnecting';}
+  else{text.textContent='Connecting';}
+}
+function connect(){
+  if(ws){try{ws.close();}catch(_){}}
+  setStatus('connecting');
+  ws=new WebSocket(WS_URL);
+  ws.onopen=()=>{setStatus('connected');if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}};
+  ws.onmessage=(evt)=>{try{const d=JSON.parse(evt.data);if(Array.isArray(d))processReadings(d);}catch(e){console.warn('[ws]',e);}};
+  ws.onerror=()=>setStatus('error');
+  ws.onclose=()=>{setStatus('error');reconnectTimer=setTimeout(connect,RECONNECT_MS);};
+}
+connect();
+</script>
+</body>
+</html>

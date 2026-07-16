@@ -185,3 +185,28 @@ python quick_test_topology.py
 - Validated: "les ressorts du crible sont cassés" now retrieves correct chunk (161,
   full Spring Breakage table) and produces accurate structured diagnosis
 - Pipeline now: query (FR) → translate (EN) → hybrid_query → chunks → LLM (context + original FR query) → answer (FR)
+## 16/07/2026 — MQTT pipeline validé sur 2 machines physiques séparées
+
+**Architecture testée:**
+- Machine A (WSL, cette machine): Mosquitto (Docker) + PostgreSQL + subscriber + dashboard FastAPI/WebSocket
+- Machine B (Windows, physiquement séparée): publisher Python autonome (config statique des assets, pas de dépendance DB)
+
+**Réseau:**
+- WSL2 utilise un réseau NAT isolé (IP interne type 172.x), inaccessible depuis l'extérieur
+- Fix: port forwarding Windows → WSL via `netsh interface portproxy` (ports 1883 MQTT + 5432 Postgres)
+- Firewall Windows ouvert sur ces 2 ports (`New-NetFirewallRule`)
+- IP réseau réelle utilisée: 192.168.0.109 (Wi-Fi, même LAN que Machine B)
+
+**Résultat:** publisher Machine B → Mosquitto (Machine A) → subscriber (Machine A) → DB → dashboard, confirmé fonctionnel en temps réel.
+
+**Limite connue:** mesure de latence par timestamp comparatif invalide entre les 2 machines (horloges non synchronisées, dérive observée -100ms à -340ms). Débit/absence de backlog confirmés OK par ailleurs. Fix si besoin plus tard: NTP sync (`w32tm /resync /force` côté Windows).
+
+**Fichiers Machine B (non versionnés dans ce repo, à garder en note):**
+- `sensor_sim.py` — copie allégée de `app/twin/sensor_sim.py`, sans dépendance DB
+- `publisher.py` — config assets statique (ids 8-14, matchant seed.py actuel)
+
+**Prochaines pistes possibles:**
+- Reconnecter RAG (manuel Metso) aux anomalies détectées en live
+- Exploiter `topology_edges` pour propagation d'impact en cascade dans le dashboard
+- Sécuriser MQTT (auth, TLS) — actuellement anonyme
+- Purge/rétention des vieilles lectures en DB
