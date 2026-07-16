@@ -1,10 +1,10 @@
 from langgraph.graph import StateGraph, END
 from app.agents.state import AgentState
 from app.rag.retrieve import hybrid_query
-from app.config import GROQ_API_KEY
+from app.config import settings
 from groq import Groq
 
-client = Groq(api_key=GROQ_API_KEY)
+client = Groq(api_key=settings.groq_api_key)
 
 KEYWORDS = {
     "crible_mf1861": ["crible", "screen", "tamis", "vibrant"],
