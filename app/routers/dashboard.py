@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Asset, SensorReading
 from app.twin.sensor_sim import NORMAL_RANGES
-from app.twin.trends import compute_trend, compute_cascade_risk
+from app.twin.trends import compute_trend, compute_cascade_risk, is_sensor_silent
 router = APIRouter(tags=["dashboard"])
 POLL_INTERVAL = 2.0  # seconds — must match sensor publish rate
 # ── connection registry ────────────────────────────────────────────────────────
@@ -81,6 +81,7 @@ async def _poll_and_broadcast():
                             "anomaly":     not (low <= reading.value <= high),
                             "trend":       compute_trend(db, asset.id, sensor_type),
                             "cascade_risk": compute_cascade_risk(db, asset.id),
+                            "silent":      is_sensor_silent(db, asset.id, sensor_type),
                         })
             if snapshot:
                 await manager.broadcast(json.dumps(snapshot))
@@ -125,6 +126,7 @@ async def websocket_live(websocket: WebSocket):
                         "anomaly":     not (low <= r.value <= high),
                         "trend":       compute_trend(db, asset.id, sensor_type),
                         "cascade_risk": compute_cascade_risk(db, asset.id),
+                        "silent":      is_sensor_silent(db, asset.id, sensor_type),
                     })
         if history:
             await websocket.send_text(json.dumps(history))
