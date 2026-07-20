@@ -62,6 +62,10 @@
     .sensor-value.anomaly{color:var(--accent-red)}
     .sensor-unit{font-size:10px;font-weight:500;color:var(--text-label);letter-spacing:.02em}
     .sensor-range{font-size:9px;color:var(--text-label);letter-spacing:.02em}
+    .trend-arrow{font-size:11px;font-weight:700;margin-left:4px}
+    .trend-arrow.rising{color:var(--accent-red)}
+    .trend-arrow.falling{color:#1f6fb8}
+    .cascade-badge{font-size:8px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#b8791f;border:1px solid #b8791f;padding:2px 6px;margin-top:6px;display:inline-block}
     .chart-wrap{position:relative;height:52px}
     /* FOOTER */
     footer{border-top:1px solid var(--border);padding:12px 32px;display:flex;align-items:center;justify-content:space-between}
@@ -171,14 +175,15 @@ function buildCard(code){
       </div>
       <span class="card-status-badge" id="badge-${code}">Normal</span>
     </div>
-    <div class="sensor-list">${SENSOR_ORDER.map(s=>buildRow(code,s)).join('')}</div>`;
+    <div class="sensor-list">${SENSOR_ORDER.map(s=>buildRow(code,s)).join('')}</div>
+    <div id="cascade-${code}"></div>`;
   return card;
 }
 function buildRow(code,sensor){
   const r=NORMAL_RANGES[sensor];
   return `<div class="sensor-row"><div class="sensor-meta">
     <span class="sensor-label">${r.label}</span>
-    <span class="sensor-value" id="val-${code}-${sensor}">&mdash;</span>
+    <span class="sensor-value" id="val-${code}-${sensor}">&mdash;<span class="trend-arrow" id="trend-${code}-${sensor}"></span></span>
     <span class="sensor-unit">${r.unit}</span>
     <span class="sensor-range">${r.low}&ndash;${r.high} ${r.unit}</span>
   </div><div class="chart-wrap"><canvas id="chart-${code}-${sensor}"></canvas></div></div>`;
@@ -220,7 +225,7 @@ function processReadings(readings){
   document.getElementById('footer-ts').textContent='Last update: '+new Date().toLocaleTimeString();
 }
 function updateReading(r){
-  const{asset_code,sensor_type,value,timestamp,anomaly}=r;
+  const{asset_code,sensor_type,value,timestamp,anomaly,trend,cascade_risk}=r;
   const key=asset_code+'-'+sensor_type;
   const buf=chartData[asset_code]?.[sensor_type];
   if(!buf)return;
@@ -235,7 +240,18 @@ function updateReading(r){
     chart.update('none');
   }
   const valEl=document.getElementById('val-'+asset_code+'-'+sensor_type);
-  if(valEl){valEl.textContent=value.toFixed(2);valEl.classList.toggle('anomaly',anomaly);}
+  if(valEl){valEl.firstChild.textContent=value.toFixed(2);valEl.classList.toggle('anomaly',anomaly);}
+  const trendEl=document.getElementById('trend-'+asset_code+'-'+sensor_type);
+  if(trendEl){
+    trendEl.className='trend-arrow';
+    if(trend==='rising'){trendEl.textContent='\u2191';trendEl.classList.add('rising');}
+    else if(trend==='falling'){trendEl.textContent='\u2193';trendEl.classList.add('falling');}
+    else{trendEl.textContent='';}
+  }
+  const cascadeEl=document.getElementById('cascade-'+asset_code);
+  if(cascadeEl){
+    cascadeEl.innerHTML=cascade_risk?'<span class="cascade-badge">Possible upstream cause</span>':'';
+  }
   updateCardState(asset_code);
   const topoEl=document.getElementById('topo-'+asset_code);
   if(topoEl){

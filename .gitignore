@@ -5,3 +5,4 @@ __pycache__/
 data/faiss_indexes/*
 !data/faiss_indexes/.gitkeep
 .env
+mosquitto_conf/passwd

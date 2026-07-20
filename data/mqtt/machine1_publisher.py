@@ -1,9 +1,14 @@
 import json, time
+import logging
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 from app.twin.sensor_sim import generate_reading, SENSOR_UNITS
 from app.database import SessionLocal
+from app.config import settings
 from app.models import Asset
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+log = logging.getLogger("publisher")
 
 BROKER_IP = "localhost"
 SENSOR_TYPES = ["vibration", "temperature", "throughput"]
@@ -16,10 +21,25 @@ db.close()
 if not ASSETS:
     raise RuntimeError("Aucun asset en DB — lance seed.py d'abord")
 
-print(f"Assets chargés: {list(ASSETS.keys())}")
+log.info(f"Assets chargés: {list(ASSETS.keys())}")
 
-client = mqtt.Client()
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        log.info("Connected to broker.")
+    else:
+        log.error(f"Connection failed, rc={rc}")
+
+def on_disconnect(client, userdata, rc):
+    log.warning(f"Disconnected (rc={rc}) — paho will auto-reconnect.")
+
+client = mqtt.Client(reconnect_on_failure=True)
+client.on_connect = on_connect
+client.on_disconnect = on_disconnect
+
+log.info("Connecting to broker...")
+client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
 client.connect(BROKER_IP, 1883)
+client.loop_start()
 
 try:
     while True:
@@ -34,9 +54,10 @@ try:
                     "unit": SENSOR_UNITS[sensor_type],
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
-                client.publish(f"sensors/{asset_id}", json.dumps(payload))
-                print(f"Published: {code} / {sensor_type} = {value}")
+                client.publish(f"sensors/{asset_id}", json.dumps(payload), qos=1)
+                log.info(f"Published: {code} / {sensor_type} = {value}")
         time.sleep(2)
 except KeyboardInterrupt:
-    print("\nArrêt publisher.")
+    log.info("Stopping publisher.")
+    client.loop_stop()
     client.disconnect()

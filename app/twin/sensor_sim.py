@@ -4,7 +4,7 @@ Single point of abstraction — swapping to real IoT later means
 changing only generate_reading(), nothing else in the system.
 """
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models import Asset, SensorReading
 
@@ -13,7 +13,6 @@ NORMAL_RANGES = {
     "temperature": (40.0, 75.0),  # °C
     "throughput": (80.0, 150.0),  # t/h
 }
-
 SENSOR_UNITS = {
     "vibration": "mm/s",
     "temperature": "C",
@@ -31,30 +30,28 @@ def generate_reading(asset_type: str, sensor_type: str, anomaly: bool = False) -
         return round(high + spike, 2)
     return round(random.uniform(low, high), 2)
 
-
 def simulate_and_log(db: Session, asset_id: int, sensor_type: str, anomaly: bool = False) -> SensorReading:
     """Generates one reading and writes it to the DB."""
-    asset = db.query(Asset).get(asset_id)
+    asset = db.get(Asset, asset_id)
+    if asset is None:
+        raise ValueError(f"Asset id={asset_id} not found — cannot simulate reading")
     value = generate_reading(asset.asset_type, sensor_type, anomaly)
-
     reading = SensorReading(
         asset_id=asset_id,
         sensor_type=sensor_type,
         value=value,
         unit=SENSOR_UNITS[sensor_type],
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
     db.add(reading)
     db.commit()
     db.refresh(reading)
     return reading
 
-
 def simulate_all_assets(db: Session, sensor_types: list = None):
     """Generates one reading per asset per sensor type — for a quick full-line snapshot."""
     if sensor_types is None:
         sensor_types = ["vibration", "temperature", "throughput"]
-
     assets = db.query(Asset).all()
     results = []
     for asset in assets:
