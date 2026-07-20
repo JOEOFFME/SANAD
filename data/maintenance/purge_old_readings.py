@@ -7,8 +7,8 @@ from datetime import datetime, timezone, timedelta
 from app.database import SessionLocal
 from app.models import SensorReading
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-log = logging.getLogger("purge")
+from app.logging_config import setup_logging
+log = setup_logging("purge")
 
 RETENTION_DAYS = 30
 

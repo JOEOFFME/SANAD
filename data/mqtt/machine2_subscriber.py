@@ -8,8 +8,8 @@ from app.config import settings
 from app.models import SensorReading, Asset
 from app.schemas import SensorReadingIn
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-log = logging.getLogger("subscriber")
+from app.logging_config import setup_logging
+log = setup_logging("subscriber")
 
 BROKER_IP = "localhost"
 BATCH_SIZE = 5

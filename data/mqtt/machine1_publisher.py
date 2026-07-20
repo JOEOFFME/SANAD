@@ -7,8 +7,8 @@ from app.database import SessionLocal
 from app.config import settings
 from app.models import Asset
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-log = logging.getLogger("publisher")
+from app.logging_config import setup_logging
+log = setup_logging("publisher")
 
 BROKER_IP = "localhost"
 SENSOR_TYPES = ["vibration", "temperature", "throughput"]

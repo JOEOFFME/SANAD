@@ -259,3 +259,37 @@ Décision de mettre le RAG/Digital Twin/prédictif de côté pour solidifier la 
 **Non traité aujourd'hui (mis de côté volontairement):** RAG, Digital Twin, prédictif — Briques 7-9, à reprendre plus tard.
 
 **Reste en Brique 10:** logging centralisé (cosmétique, faible priorité).
+
+## 21/07/2026 — Brique 10-C: logging centralisé (fondation complète)
+
+Dernier morceau de la Brique 10, clôturant l'audit fondationnel complet (Briques 1-6, 10).
+
+**Nouveau module** `app/logging_config.py`:
+- `setup_logging(name)` — configuration unique réutilisée par tous les composants
+- Sortie double: console + fichier partagé `logs/sanadindus.log`
+- Format uniforme: `timestamp | level | component_name | message`
+- `logger.handlers.clear()` pour éviter les handlers dupliqués sous `uvicorn --reload`
+
+**Composants migrés vers le logger centralisé:**
+- `data/mqtt/machine1_publisher.py`
+- `data/mqtt/machine2_subscriber.py`
+- `app/routers/dashboard.py` (dernier `print()` restant éliminé)
+- `data/maintenance/purge_old_readings.py`
+
+Tous les logs (génération, ingestion, dashboard, purge) sont désormais consultables au même endroit (`logs/sanadindus.log`), avec le composant source identifiable par ligne. `logs/` ajouté au `.gitignore` (fichiers générés, non versionnés).
+
+---
+
+## Bilan — Fondation (Briques 1-6, 10) : AUDIT COMPLET
+
+| Brique | Contenu | État |
+|---|---|---|
+| 1 | Modèle de données (indexes, relationships, cascade, timezone, schémas Pydantic) | ✅ |
+| 2 | Connexion DB (pooling, validation stricte, pas de secret hardcodé) | ✅ |
+| 3 | Génération de données (cohérence timezone, gestion d'erreur) | ✅ |
+| 4 | Ingestion MQTT (fix bug perte de données, validation Pydantic, QoS 1, auth, reconnexion) | ✅ |
+| 5 | Dashboard (lecture DB uniquement, pas de génération parasite) | ✅ |
+| 6 | Logique métier (dérive, cascade, capteur silencieux) | ✅ |
+| 10 | Robustesse (sécurité MQTT, rétention, tests, logging centralisé) | ✅ |
+
+**Volontairement mis de côté:** Briques 7-9 (RAG, prédictif, fermeture de boucle/action) — à reprendre dans une session dédiée, sur une base maintenant solide et testée.

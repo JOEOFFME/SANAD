@@ -17,6 +17,9 @@ from app.database import SessionLocal
 from app.models import Asset, SensorReading
 from app.twin.sensor_sim import NORMAL_RANGES
 from app.twin.trends import compute_trend, compute_cascade_risk, is_sensor_silent
+from app.logging_config import setup_logging
+
+log = setup_logging("dashboard")
 router = APIRouter(tags=["dashboard"])
 POLL_INTERVAL = 2.0  # seconds — must match sensor publish rate
 # ── connection registry ────────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ async def _poll_and_broadcast():
             if snapshot:
                 await manager.broadcast(json.dumps(snapshot))
         except Exception as exc:
-            print(f"[dashboard poller] error: {exc}")
+            log.error(f"Poller error: {exc}")
         finally:
             db.close()
 _poller_task: asyncio.Task | None = None
