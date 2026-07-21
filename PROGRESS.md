@@ -210,3 +210,86 @@ python quick_test_topology.py
 - Exploiter `topology_edges` pour propagation d'impact en cascade dans le dashboard
 - Sécuriser MQTT (auth, TLS) — actuellement anonyme
 - Purge/rétention des vieilles lectures en DB
+
+## 20-21/07/2026 — Audit fondation brique par brique (Briques 1-10)
+
+Décision de mettre le RAG/Digital Twin/prédictif de côté pour solidifier la fondation existante avant d'aller plus loin. Audit systématique, brique par brique, du projet déjà construit.
+
+**Brique 1 — Modèle de données** (`app/models.py`, `app/schemas.py`):
+- Indexes ajoutés sur toutes les FK + index composite `(asset_id, sensor_type, timestamp)` — validé via `EXPLAIN ANALYZE` à 0.039ms sur 839k lignes
+- `relationship()` SQLAlchemy avec `cascade="all, delete-orphan"` (résout l'erreur FK rencontrée au reseed)
+- Timestamps timezone-aware partout
+- Schémas Pydantic complétés (`SensorReadingOut`, `TopologyEdgeIn/Out`, `NodeConfidenceOut`, `AssetIn`)
+- Migration Alembic générée et appliquée (Alembic initialisé de zéro), aucune perte de données
+
+**Brique 2 — Connexion DB** (`app/database.py`, `app/config.py`):
+- Mot de passe hardcodé en fallback supprimé, `database_url` devient obligatoire
+- `pool_pre_ping=True` + pooling de connexions
+- Import cassé dans `app/agents/graph.py` corrigé après nettoyage de `config.py`
+- Confirmé: `.env` jamais présent dans l'historique Git
+
+**Brique 3 — Génération de données** (`app/twin/sensor_sim.py`):
+- `datetime.now(timezone.utc)` au lieu de `datetime.utcnow()` (cohérence avec Brique 1)
+- `db.get()` au lieu de la syntaxe dépréciée `.query().get()`
+- Gestion d'erreur explicite si asset introuvable
+
+**Brique 4 — Ingestion MQTT** (`data/mqtt/machine1_publisher.py`, `machine2_subscriber.py`):
+- **Bug critique corrigé:** le rollback annulait tout le batch en attente au lieu du seul message fautif (perte de données silencieuse) — remplacé par `db.flush()` par message + rollback isolé
+- Validation Pydantic des payloads entrants (schémas de la Brique 1 enfin utilisés)
+- QoS 1 sur publish/subscribe (au lieu de 0, fire-and-forget)
+- Reconnexion automatique MQTT (`reconnect_on_failure=True`, `loop_start()`)
+- Authentification MQTT ajoutée (Mosquitto: `allow_anonymous false` + password file), credentials déplacés dans `.env`/`config.py`
+
+**Brique 5 — Dashboard** (`app/routers/dashboard.py`):
+- Import `datetime` inutilisé nettoyé
+- Cohérent avec les fixes de la Brique 4 (plus de génération interne, lecture DB uniquement)
+
+**Brique 6 — Logique métier** (`app/twin/trends.py`, nouveau module):
+- Détection de dérive (`compute_trend`): moyenne glissante sur 10 lectures, flag "rising"/"falling" même si la valeur reste dans les seuils normaux
+- Risque de cascade (`compute_cascade_risk`): exploite `topology_edges` pour détecter si un voisin amont est aussi en anomalie
+- Détection de capteur silencieux (`is_sensor_silent`): absence de donnée >6s (3x l'intervalle normal de 2s)
+- Branché dans le dashboard backend + frontend (flèches ↑/↓, badge "Possible upstream cause")
+
+**Brique 10 — Robustesse opérationnelle:**
+- Sécurité MQTT (auth, plus d'anonyme)
+- Politique de rétention: script de purge (30 jours), tâche cron quotidienne (2h du matin)
+- Suite de tests pytest (6 tests) sur `sensor_sim` et `trends` — ciblés sur les bugs réels rencontrés cette session
+- Fix warning déprécation Pydantic v2 (`SettingsConfigDict`)
+
+**Non traité aujourd'hui (mis de côté volontairement):** RAG, Digital Twin, prédictif — Briques 7-9, à reprendre plus tard.
+
+**Reste en Brique 10:** logging centralisé (cosmétique, faible priorité).
+
+## 21/07/2026 — Brique 10-C: logging centralisé (fondation complète)
+
+Dernier morceau de la Brique 10, clôturant l'audit fondationnel complet (Briques 1-6, 10).
+
+**Nouveau module** `app/logging_config.py`:
+- `setup_logging(name)` — configuration unique réutilisée par tous les composants
+- Sortie double: console + fichier partagé `logs/sanadindus.log`
+- Format uniforme: `timestamp | level | component_name | message`
+- `logger.handlers.clear()` pour éviter les handlers dupliqués sous `uvicorn --reload`
+
+**Composants migrés vers le logger centralisé:**
+- `data/mqtt/machine1_publisher.py`
+- `data/mqtt/machine2_subscriber.py`
+- `app/routers/dashboard.py` (dernier `print()` restant éliminé)
+- `data/maintenance/purge_old_readings.py`
+
+Tous les logs (génération, ingestion, dashboard, purge) sont désormais consultables au même endroit (`logs/sanadindus.log`), avec le composant source identifiable par ligne. `logs/` ajouté au `.gitignore` (fichiers générés, non versionnés).
+
+---
+
+## Bilan — Fondation (Briques 1-6, 10) : AUDIT COMPLET
+
+| Brique | Contenu | État |
+|---|---|---|
+| 1 | Modèle de données (indexes, relationships, cascade, timezone, schémas Pydantic) | ✅ |
+| 2 | Connexion DB (pooling, validation stricte, pas de secret hardcodé) | ✅ |
+| 3 | Génération de données (cohérence timezone, gestion d'erreur) | ✅ |
+| 4 | Ingestion MQTT (fix bug perte de données, validation Pydantic, QoS 1, auth, reconnexion) | ✅ |
+| 5 | Dashboard (lecture DB uniquement, pas de génération parasite) | ✅ |
+| 6 | Logique métier (dérive, cascade, capteur silencieux) | ✅ |
+| 10 | Robustesse (sécurité MQTT, rétention, tests, logging centralisé) | ✅ |
+
+**Volontairement mis de côté:** Briques 7-9 (RAG, prédictif, fermeture de boucle/action) — à reprendre dans une session dédiée, sur une base maintenant solide et testée.

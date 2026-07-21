@@ -5,7 +5,7 @@ Operates on data already in DB; doesn't generate or store anything new.
 from sqlalchemy.orm import Session
 from app.models import SensorReading, TopologyEdge
 from app.twin.sensor_sim import NORMAL_RANGES
-
+from datetime import datetime, timezone
 DRIFT_THRESHOLD_RATIO = 0.15  # 15% of the sensor's normal range
 
 def compute_trend(db: Session, asset_id: int, sensor_type: str, window: int = 10) -> str:
@@ -60,3 +60,25 @@ def compute_cascade_risk(db: Session, asset_id: int) -> bool:
     """True if any upstream neighbor currently shows an anomaly."""
     upstream_ids = get_upstream_assets(db, asset_id)
     return any(has_recent_anomaly(db, uid) for uid in upstream_ids)
+
+
+#####"Silence Sensor Detection############
+
+
+SILENT_THRESHOLD_SECONDS = 6  # 3x the expected 2s publish interval
+
+def is_sensor_silent(db: Session, asset_id: int, sensor_type: str) -> bool:
+    """True if no reading has arrived for this sensor in over SILENT_THRESHOLD_SECONDS."""
+    latest = (
+        db.query(SensorReading)
+        .filter_by(asset_id=asset_id, sensor_type=sensor_type)
+        .order_by(SensorReading.timestamp.desc())
+        .first()
+    )
+    if latest is None:
+        return True
+    latest_timestamp = latest.timestamp
+    if latest_timestamp.tzinfo is None:
+        latest_timestamp = latest_timestamp.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - latest_timestamp).total_seconds()
+    return age > SILENT_THRESHOLD_SECONDS
