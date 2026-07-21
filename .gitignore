@@ -6,3 +6,11 @@ data/faiss_indexes/*
 !data/faiss_indexes/.gitkeep
 .env
 mosquitto_conf/passwd
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/npm-debug.log*
+frontend/*.tsbuildinfo
