@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     database_url: str
     app_name: str = "SANADIndus"
     groq_api_key: str = ""
+    mqtt_broker_host: str = "localhost"
+    mqtt_broker_port: int = 1883
+    mqtt_topic: str = "sensors/#"
+    mqtt_commit_batch_size: int = 1
     mqtt_username: str = "sanad_iot"
     mqtt_password: str = ""
 
