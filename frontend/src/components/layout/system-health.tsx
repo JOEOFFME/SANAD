@@ -23,7 +23,7 @@ export function SystemHealth() {
       <span
         className={`flex size-9 items-center justify-center rounded-md border ${
           online
-            ? "border-emerald-200 bg-emerald-50 text-brand"
+            ? "border-blue-200 bg-blue-50 text-brand"
             : health.isPending
               ? "border-line bg-canvas text-muted"
               : "border-red-200 bg-red-50 text-danger"

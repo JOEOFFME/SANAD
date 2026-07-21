@@ -1,3 +1,4 @@
+@import "@xyflow/react/dist/style.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -28,6 +29,18 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.react-flow__node {
+  font-family: inherit;
+}
+
+.react-flow__controls-button {
+  width: 32px !important;
+  height: 32px !important;
+  border-bottom-color: #dbe1e6 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -35,7 +48,7 @@ a {
 
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid #176b5b;
+  outline: 2px solid #174b6b;
   outline-offset: 2px;
 }
 
