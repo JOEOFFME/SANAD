@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
   Box,
@@ -12,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { AssetOut, LiveReading, SensorType } from "@/lib/api/types";
+import { getMachineImage } from "@/lib/machine-images";
 import { formatReading } from "@/lib/telemetry";
 
 export interface ProcessNodeData extends Record<string, unknown> {
@@ -56,6 +58,7 @@ export function ProcessNode({ data }: NodeProps<ProcessFlowNode>) {
           ? "normal"
           : "waiting";
   const Icon = assetIcons[asset.asset_type] ?? Factory;
+  const machineImage = getMachineImage(asset.asset_type);
 
   const statusStyles = {
     normal: "border-blue-400 bg-white shadow-[0_0_0_1px_rgba(59,130,246,0.08)]",
@@ -75,7 +78,7 @@ export function ProcessNode({ data }: NodeProps<ProcessFlowNode>) {
 
   return (
     <article
-      className={`h-[166px] w-[228px] overflow-hidden rounded-md border-2 ${statusStyles}`}
+      className={`h-[254px] w-[228px] overflow-hidden rounded-md border-2 ${statusStyles}`}
     >
       <Handle
         type="target"
@@ -95,6 +98,22 @@ export function ProcessNode({ data }: NodeProps<ProcessFlowNode>) {
           </h3>
         </div>
         <span className={`size-2.5 rounded-full ${indicatorStyles}`} />
+      </div>
+
+      <div className="relative h-[88px] border-b border-slate-200 bg-[#edf3f8]">
+        {machineImage ? (
+          <Image
+            src={machineImage}
+            alt={`Illustration de ${asset.name}`}
+            fill
+            sizes="228px"
+            className="object-contain px-3 py-1.5"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-slate-300">
+            <Icon className="size-10" aria-hidden="true" />
+          </div>
+        )}
       </div>
 
       <div className="grid h-[114px] grid-rows-3 px-3 py-1.5">

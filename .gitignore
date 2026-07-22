@@ -16,3 +16,4 @@ frontend/npm-debug.log*
 frontend/*.tsbuildinfo
 
 logs/
+.vscode/mcp.json

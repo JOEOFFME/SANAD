@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   ArrowRightLeft,
   Box,
@@ -16,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { AssetOut, LiveReading, SensorType } from "@/lib/api/types";
+import { getMachineImage } from "@/lib/machine-images";
 import { formatReading } from "@/lib/telemetry";
 
 interface EquipmentCardProps {
@@ -105,6 +107,7 @@ export function EquipmentCard({ asset, readings, connected }: EquipmentCardProps
     label: asset.asset_type,
   };
   const AssetIcon = assetType.icon;
+  const machineImage = getMachineImage(asset.asset_type);
   const latestTimestamp = liveReadings
     .map((reading) => reading.timestamp)
     .sort()
@@ -135,6 +138,22 @@ export function EquipmentCard({ asset, readings, connected }: EquipmentCardProps
           {statusPresentation.label}
         </span>
       </header>
+
+      <div className="relative h-32 shrink-0 border-b border-slate-200 bg-[#edf3f8]">
+        {machineImage ? (
+          <Image
+            src={machineImage}
+            alt={`Illustration de ${asset.name}`}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1536px) 50vw, 25vw"
+            className="object-contain px-5 py-2"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-slate-300">
+            <AssetIcon className="size-12" aria-hidden="true" />
+          </div>
+        )}
+      </div>
 
       <div className="flex-1 divide-y divide-slate-100 px-4">
         {sensorPresentation.map(({ type, label, icon: SensorIcon }) => {

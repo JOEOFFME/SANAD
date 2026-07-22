@@ -50,7 +50,7 @@ function buildPositions(assets: AssetOut[], links: TopologyLink[]) {
     sorted.forEach((asset, index) => {
       positions.set(asset.id, {
         x: level * 270,
-        y: 270 + (index - (sorted.length - 1) / 2) * 220,
+        y: 270 + (index - (sorted.length - 1) / 2) * 300,
       });
     });
   }
